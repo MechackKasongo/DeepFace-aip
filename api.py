@@ -3,7 +3,6 @@ from deepface import DeepFace
 import os
 import uuid
 from PIL import Image
-import numpy as np
 
 app = Flask(__name__)
 
@@ -22,7 +21,7 @@ def predict():
 
         # Vérifie qu'une image a été envoyée
         if 'image' not in request.files:
-            print("⚠Aucune image reçue")
+            print("⚠ Aucune image reçue")
             return jsonify({'error': 'Aucune image reçue'}), 400
 
         image_file = request.files['image']
@@ -30,7 +29,7 @@ def predict():
             print("Nom de fichier vide")
             return jsonify({'error': 'Nom de fichier vide'}), 400
 
-        # Sauvegarde temporairement l'image
+        # Sauvegarde temporaire de l'image reçue
         image_id = str(uuid.uuid4())
         input_path = os.path.join(UPLOAD_FOLDER, f"{image_id}.jpg")
         image_file.save(input_path)
@@ -39,27 +38,38 @@ def predict():
         # Répertoire contenant les visages de référence
         dataset_path = "dataset"
 
+        # Vérifie les images du dataset et supprime celles qui sont corrompues
+        for root, _, files in os.walk(dataset_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    Image.open(file_path).verify()
+                except Exception as e:
+                    print(f"⚠️ Image corrompue supprimée: {file_path} ({e})")
+                    os.remove(file_path)
+
         # Lancer la reconnaissance faciale
         result = DeepFace.find(img_path=input_path, db_path=dataset_path, model_name='VGG-Face')
 
         if result and isinstance(result, list) and len(result[0]) > 0:
-            # On récupère la correspondance avec le plus haut score (plus petite distance)
             top_match = result[0].iloc[0]
             identity = os.path.basename(os.path.dirname(top_match["identity"]))
-            print(f"Correspondance trouvée : {identity}")
-            response = {'identity': identity}
+            distance = top_match.get("VGG-Face_cosine", 0.0)
+            confidence = f"{(1 - distance) * 100:.2f} %"
+            print(f"✅ Correspondance trouvée : {identity} avec confiance : {confidence}")
+            response = {'identity': identity, 'confidence': confidence}
         else:
-            print("Aucun visage correspondant trouvé.")
-            response = {'identity': 'Inconnu'}
+            print("❌ Aucun visage correspondant trouvé.")
+            response = {'identity': 'Inconnu', 'confidence': "0%"}
 
-        # Nettoyage du fichier temporaire
+        # Nettoyage de l'image temporaire
         if os.path.exists(input_path):
             os.remove(input_path)
 
         return jsonify(response)
 
     except Exception as e:
-        print(f"Erreur : {str(e)}")
+        print(f"❌ Erreur : {str(e)}")
         return jsonify({'error': f"Erreur lors du traitement de l'image: {str(e)}"}), 500
 
 
@@ -68,7 +78,78 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
 
 
+#############################################################################################################
+# from flask import Flask, request, jsonify
+# from deepface import DeepFace
+# import os
+# import uuid
+# from PIL import Image
+# import numpy as np
 
+# app = Flask(__name__)
+
+# # Dossier pour stocker temporairement les images reçues
+# UPLOAD_FOLDER = 'uploads'
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# @app.route('/')
+# def index():
+#     return 'API DeepFace en ligne et opérationnelle !'
+
+# @app.route('/predict', methods=['POST'])
+# def predict():
+#     try:
+#         print("Requête reçue")
+
+#         # Vérifie qu'une image a été envoyée
+#         if 'image' not in request.files:
+#             print("⚠Aucune image reçue")
+#             return jsonify({'error': 'Aucune image reçue'}), 400
+
+#         image_file = request.files['image']
+#         if image_file.filename == '':
+#             print("Nom de fichier vide")
+#             return jsonify({'error': 'Nom de fichier vide'}), 400
+
+#         # Sauvegarde temporairement l'image
+#         image_id = str(uuid.uuid4())
+#         input_path = os.path.join(UPLOAD_FOLDER, f"{image_id}.jpg")
+#         image_file.save(input_path)
+#         print(f"Image sauvegardée temporairement à {input_path}")
+
+#         # Répertoire contenant les visages de référence
+#         dataset_path = "dataset"
+
+#         # Lancer la reconnaissance faciale
+#         result = DeepFace.find(img_path=input_path, db_path=dataset_path, model_name='VGG-Face')
+
+#         if result and isinstance(result, list) and len(result[0]) > 0:
+#             # On récupère la correspondance avec le plus haut score (plus petite distance)
+#             top_match = result[0].iloc[0]
+#             identity = os.path.basename(os.path.dirname(top_match["identity"]))
+#             print(f"Correspondance trouvée : {identity}")
+#             response = {'identity': identity}
+#         else:
+#             print("Aucun visage correspondant trouvé.")
+#             response = {'identity': 'Inconnu'}
+
+#         # Nettoyage du fichier temporaire
+#         if os.path.exists(input_path):
+#             os.remove(input_path)
+
+#         return jsonify(response)
+
+#     except Exception as e:
+#         print(f"Erreur : {str(e)}")
+#         return jsonify({'error': f"Erreur lors du traitement de l'image: {str(e)}"}), 500
+
+
+# if __name__ == '__main__':
+#     port = int(os.environ.get("PORT", 5000))
+#     app.run(host='0.0.0.0', port=port)
+
+
+######################################################################################################################################################################
 
 # from flask import Flask, request, jsonify
 # from deepface import DeepFace
