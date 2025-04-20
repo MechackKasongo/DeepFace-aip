@@ -1,4 +1,13 @@
-
+flask
 deepface
 tensorflow==2.12.0
-flask
+opencv-python
+numpy
+pandas
+keras
+gdown
+requests
+matplotlib
+scikit-learn
+scipy
+Pillow
