@@ -109,19 +109,26 @@ def predict():
         for image_path, rep in representations:
             distance = np.linalg.norm(np.array(rep) - np.array(input_embedding))
             identity = os.path.basename(os.path.dirname(image_path))  # nom du dossier = nom de la personne
-            matches.append((identity, distance))
+            matches.append((identity, distance, image_path))
 
         # Trier par distance
         matches.sort(key=lambda x: x[1])
         top_matches = matches[:3]
+
+        def distance_to_similarity(distance):
+            return max(0.0, 100.0 - distance * 100)
 
         logger.info(f"✅ Prédiction terminée - top 3: {top_matches}")
 
         return jsonify({
             "status": "ok",
             "top_3": [
-                {"identity": identity, "distance": float(distance)}
-                for identity, distance in top_matches
+                {
+                    "identity": identity,
+                    "similarity": f"{distance_to_similarity(distance):.2f}%",
+                    "image_path": image_path
+                }
+                for identity, distance, image_path in top_matches
             ]
         }), 200
 
