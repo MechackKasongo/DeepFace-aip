@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: api-reconnaissance
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python api.py
